@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>ADHD Focus Planner</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#111111" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Focus Planner" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{min-height:100vh;background:radial-gradient(circle at top left,#f2dfc8 0,transparent 32%),linear-gradient(180deg,#f8f4ee 0%,#efe8de 100%);color:#28231f;padding:18px}
+.app{max-width:440px;margin:0 auto;padding-bottom:28px}
+header{padding:12px 4px 18px}
+.date{font-size:13px;color:#82776c;margin-bottom:7px;font-weight:600}
+h1{font-size:31px;line-height:1.08;margin-bottom:9px;letter-spacing:-.8px}
+.sub{font-size:15px;line-height:1.45;color:#71675c}
+.card{background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-radius:26px;padding:18px;margin-bottom:16px;box-shadow:0 14px 34px rgba(60,43,26,.09);border:1px solid rgba(120,95,66,.08)}
+.title{font-size:18px;font-weight:850;margin-bottom:13px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hint{font-size:12px;color:#91867a;font-weight:700;white-space:nowrap}
+.label{font-size:13px;font-weight:800;color:#5d5146;margin:14px 0 7px}
+input,select{width:100%;border:1px solid #ddd3c7;border-radius:17px;padding:14px;font-size:15px;background:#fffdf9;color:#2b2824;outline:none;transition:.18s ease}
+input:focus,select:focus{border-color:#b99563;box-shadow:0 0 0 4px rgba(185,149,99,.14);background:#fff}
+input:disabled,select:disabled,button:disabled{opacity:.48;cursor:not-allowed}
+.task-row{display:grid;grid-template-columns:30px 1fr 42px;gap:9px;align-items:center;margin-bottom:10px}
+.check{width:30px;height:30px;border:2px solid #c2a879;border-radius:11px;display:grid;place-items:center;flex-shrink:0;font-weight:900;color:#fff;background:#fffaf2}
+.task-row.done .check{background:#78906a;border-color:#78906a}
+.task-row.done input{text-decoration:line-through;color:#958d83;background:#f3eee8}
+.icon-btn{width:42px;height:42px;border-radius:15px;border:0;background:#f3e7df;color:#9a4c3f;margin:0;padding:0;display:grid;place-items:center;cursor:pointer;transition:.18s ease}
+.icon-btn:hover{background:#ead7ce;transform:translateY(-1px)}
+.trash{width:18px;height:18px;stroke:currentColor;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round}
+button{width:100%;border:0;border-radius:17px;padding:14px 16px;margin-top:10px;background:#29241f;color:#fff;font-size:15px;font-weight:850;cursor:pointer;transition:.18s ease}
+button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 18px rgba(43,36,31,.12)}
+button.secondary{background:#eee5da;color:#2b2824;box-shadow:none}
+button.danger{background:#f0ded8;color:#8b3f34;box-shadow:none}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.helper{margin-top:8px;font-size:12.5px;line-height:1.4;color:#81766a;background:#f7f0e7;border-radius:14px;padding:10px 12px}
+.timer{text-align:center}
+.phase{font-size:14px;font-weight:850;color:#7b654b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.time{font-size:60px;font-weight:950;letter-spacing:-2.2px;margin:8px 0}
+.message{background:#f5ecde;color:#5c5045;border-radius:18px;padding:14px;font-size:15px;line-height:1.45;margin-top:12px;white-space:pre-line;text-align:left}
+.steps{display:grid;gap:9px;margin-top:13px}
+.step{display:flex;align-items:center;gap:10px;background:#fffdf9;border:1px solid #eee5da;border-radius:17px;padding:12px;text-align:left}
+.dot{width:28px;height:28px;border-radius:11px;border:2px solid #c6ad83;display:grid;place-items:center;font-weight:900;color:#fff;flex-shrink:0;background:#fffaf2}
+.step.done .dot{background:#78906a;border-color:#78906a}
+.step.active{border-color:#b99563;background:#fff8ed;box-shadow:0 8px 18px rgba(185,149,99,.12)}
+.step-title{font-weight:850;font-size:14px}
+.step-sub{font-size:12px;color:#7c7166;margin-top:2px}
+@media(max-width:380px){.grid{grid-template-columns:1fr}.time{font-size:52px}}
+</style>
+</head>
+<body>
+<main class="app">
+<header>
+<div class="date" id="date"></div>
+<h1>ADHD Focus Planner</h1>
+<p class="sub">Choose one task, start gently, and complete it in guided focus rounds.</p>
+</header>
+
+<section class="card">
+<div class="title">Notifications <span class="hint">optional</span></div>
+<button class="secondary" onclick="enableNotifications()">Enable Notifications</button>
+<div class="helper" id="notificationStatus">For best alerts, allow notifications and keep Chrome notifications enabled on your phone.</div>
+</section>
+
+<section class="card">
+<div class="title">Today’s Tasks <span class="hint">start with 3</span></div>
+<button class="danger" onclick="clearEverything()">Clear Everything</button>
+<button class="secondary" onclick="resetCompletedTasks()">Reset Completed Tasks</button>
+<div style="height:14px"></div>
+<div id="tasks"></div>
+<button id="addTaskBtn" class="secondary" onclick="addTaskField()">+ Add Task</button>
+<button id="saveTasksBtn" class="secondary" onclick="saveTasks()">Save Tasks</button>
+</section>
+
+<section class="card">
+<div class="title">Start a Focus Flow <span class="hint">guided session</span></div>
+<div class="label">Choose the task you want to work on</div>
+<select id="taskSelect"></select>
+<div class="label">Choose how long you want to work on this task</div>
+<select id="durationSelect"></select>
+<div class="helper">This time will be split into 3 focus rounds.</div>
+<div class="label">Choose break time between focus rounds</div>
+<select id="breakDurationSelect"></select>
+<div class="label">Choose break time between tasks</div>
+<select id="taskBreakSelect"></select>
+<div class="helper">After one task is done, the app will automatically select the next task and give you this break before you continue.</div>
+<div class="grid">
+<button onclick="startPreparation()">Start 5-Minute Preparation</button>
+<button class="secondary" onclick="skipPreparation()">Skip Preparation</button>
+</div>
+</section>
+
+<section class="card timer">
+<div class="phase" id="phaseLabel">Not started</div>
+<div class="time" id="timer">00:00</div>
+<button id="skipBtn" class="secondary" onclick="skipOrBegin()" disabled>Skip Break</button>
+<div class="message" id="message">Choose a task and start when you’re ready.</div>
+<div class="grid">
+<button id="mainBtn" onclick="toggleTimer()" disabled>Pause</button>
+<button class="secondary" onclick="restartSession()">Restart Session</button>
+</div>
+<div class="steps">
+<div class="step" id="step1"><div class="dot">1</div><div><div class="step-title">Focus Round 1</div><div class="step-sub">Start gently</div></div></div>
+<div class="step" id="break1"><div class="dot">☕</div><div><div class="step-title">Break</div><div class="step-sub">Short break</div></div></div>
+<div class="step" id="step2"><div class="dot">2</div><div><div class="step-title">Focus Round 2</div><div class="step-sub">Keep going</div></div></div>
+<div class="step" id="break2"><div class="dot">☕</div><div><div class="step-title">Break</div><div class="step-sub">Short break</div></div></div>
+<div class="step" id="step3"><div class="dot">3</div><div><div class="step-title">Focus Round 3</div><div class="step-sub">Finish strong</div></div></div>
+</div>
+</section>
+</main>
+
+<script>
+const STORAGE_KEY = "focusPlannerStateV1";
+const dateEl = document.getElementById("date");
+const tasksWrap = document.getElementById("tasks");
+const taskSelect = document.getElementById("taskSelect");
+const durationSelect = document.getElementById("durationSelect");
+const breakDurationSelect = document.getElementById("breakDurationSelect");
+const taskBreakSelect = document.getElementById("taskBreakSelect");
+const timerEl = document.getElementById("timer");
+const phaseLabel = document.getElementById("phaseLabel");
+const messageEl = document.getElementById("message");
+const mainBtn = document.getElementById("mainBtn");
+const skipBtn = document.getElementById("skipBtn");
+const addTaskBtn = document.getElementById("addTaskBtn");
+const saveTasksBtn = document.getElementById("saveTasksBtn");
+
+let app = loadState();
+let ticker = null;
+let audioCtx = null;
+
+function defaultState(){
+  return {
+    tasks:["","",""],
+    completed:[false,false,false],
+    selectedTaskIndex:null,
+    phase:"idle",
+    flow:[],
+    flowIndex:-1,
+    phaseEndTime:null,
+    pausedRemaining:null,
+    waitingNext:false,
+    nextPhaseIndex:null,
+    allDoneLocked:false
+  };
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const data = raw ? JSON.parse(raw) : defaultState();
+    if(!Array.isArray(data.tasks) || data.tasks.length===0) data.tasks=["","",""];
+    if(!Array.isArray(data.completed)) data.completed=[];
+    while(data.completed.length < data.tasks.length) data.completed.push(false);
+    return Object.assign(defaultState(), data);
+  }catch(e){return defaultState();}
+}
+
+function saveState(){localStorage.setItem(STORAGE_KEY, JSON.stringify(app));}
+
+function escapeHtml(str){
+  return String(str||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+dateEl.textContent = new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+
+function renderTasks(){
+  tasksWrap.innerHTML = "";
+  app.tasks.forEach((task,i)=>{
+    const row = document.createElement("div");
+    row.className = "task-row" + (app.completed[i] ? " done" : "");
+    row.innerHTML = `
+      <div class="check">${app.completed[i] ? "✓" : ""}</div>
+      <input placeholder="Task ${i+1}" value="${escapeHtml(task)}" oninput="updateTask(${i}, this.value)" />
+      <button class="icon-btn" onclick="removeTaskField(${i})" aria-label="Delete task">
+        <svg class="trash" viewBox="0 0 24 24">
+          <path d="M3 6h18"></path>
+          <path d="M8 6V4h8v2"></path>
+          <path d="M6 6l1 15h10l1-15"></path>
+          <path d="M10 11v6"></path>
+          <path d="M14 11v6"></path>
+        </svg>
+      </button>`;
+    tasksWrap.appendChild(row);
+  });
+  refreshTaskSelect();
+}
+
+function updateTask(i,value){
+  app.tasks[i]=value;
+  app.completed[i]=false;
+  saveState();
+  refreshTaskSelect();
+}
+
+function addTaskField(){
+  if(addTaskBtn.disabled) return;
+  app.tasks.push("");
+  app.completed.push(false);
+  saveState();
+  renderTasks();
+}
+
+function removeTaskField(i){
+  app.tasks.splice(i,1);
+  app.completed.splice(i,1);
+  if(app.tasks.length===0){app.tasks=[""];app.completed=[false];}
+  saveState();
+  renderTasks();
+  messageEl.textContent = "Task removed.";
+}
+
+function saveTasks(){
+  if(saveTasksBtn.disabled) return;
+  saveState();
+  messageEl.textContent = "Tasks saved. Choose one task to begin.";
+}
+
+function resetCompletedTasks(){
+  app.completed = app.tasks.map(()=>false);
+  app.allDoneLocked = false;
+  saveState();
+  restartSession(false);
+  renderTasks();
+  messageEl.textContent = "Completed tasks reset. Your task list is ready to repeat.";
+}
+
+function clearEverything(){
+  clearInterval(ticker);
+  app = defaultState();
+  saveState();
+  renderTasks();
+  resetStepUI();
+  renderIdle("Everything is cleared. Start fresh.");
+}
+
+function refreshTaskSelect(){
+  const old = taskSelect.value;
+  taskSelect.innerHTML = "";
+  app.tasks.forEach((t,i)=>{
+    if(t.trim()){
+      const opt=document.createElement("option");
+      opt.value=i;
+      opt.textContent=(app.completed[i]?"✓ ":"")+t.trim();
+      taskSelect.appendChild(opt);
+    }
+  });
+  if(!taskSelect.children.length){
+    const opt=document.createElement("option");
+    opt.value="";
+    opt.textContent="Write at least one task first";
+    taskSelect.appendChild(opt);
+  }
+  if(old && Array.from(taskSelect.options).some(o=>o.value===old)) taskSelect.value=old;
+}
+
+function buildSelects(){
+  durationSelect.innerHTML="";
+  for(let m=15;m<=135;m+=15){
+    const opt=document.createElement("option");
+    opt.value=m;
+    opt.textContent=m<60 ? `${m} minutes` : `${Math.floor(m/60)}h${m%60 ? " "+m%60+"m" : ""}`;
+    durationSelect.appendChild(opt);
+  }
+  durationSelect.value="45";
+
+  breakDurationSelect.innerHTML="";
+  [5,10,15].forEach(m=>{
+    const opt=document.createElement("option");
+    opt.value=m;
+    opt.textContent=`${m} minutes between focus rounds`;
+    breakDurationSelect.appendChild(opt);
+  });
+
+  taskBreakSelect.innerHTML="";
+  [15,30,45,60].forEach(m=>{
+    const opt=document.createElement("option");
+    opt.value=m;
+    opt.textContent=m<60 ? `${m} minutes between tasks` : "1 hour between tasks";
+    taskBreakSelect.appendChild(opt);
+  });
+}
+
+function setPlanningControlsLocked(locked){
+  addTaskBtn.disabled=locked;
+  saveTasksBtn.disabled=locked;
+  taskSelect.disabled=locked;
+  durationSelect.disabled=locked;
+  breakDurationSelect.disabled=locked;
+  taskBreakSelect.disabled=locked;
+}
+
+function hasAvailableTask(){
+  return app.tasks.some((t,i)=>t.trim() && !app.completed[i]);
+}
+
+function showAllDoneError(){
+  phaseLabel.textContent="All Tasks Completed";
+  timerEl.textContent="DONE";
+  mainBtn.disabled=true;
+  skipBtn.disabled=true;
+  messageEl.textContent="All tasks are already completed.\n\nTo start again, tap Reset Completed Tasks first.";
+}
+
+function isActive(){
+  return ["prepare","focus","break","taskBreak"].includes(app.phase);
+}
+
+function createFlow(includePreparation){
+  if(app.allDoneLocked || !hasAvailableTask()){showAllDoneError();return;}
+  if(isActive()){
+    if(app.phase==="prepare" && !includePreparation){startFocusRound(0);return;}
+    messageEl.textContent="A focus session is already running.";
+    return;
+  }
+  if(taskSelect.value==="") return;
+  const idx=Number(taskSelect.value);
+  if(app.completed[idx]){showAllDoneError();return;}
+  app.selectedTaskIndex=idx;
+  const totalMin=Number(durationSelect.value);
+  const focusSec=Math.round(totalMin*60/3);
+  const breakSec=Number(breakDurationSelect.value)*60;
+  app.flow=[
+    {type:"focus1",label:"Focus Round 1",seconds:focusSec,step:"step1"},
+    {type:"break1",label:"Break",seconds:breakSec,step:"break1",next:"Focus Round 2"},
+    {type:"focus2",label:"Focus Round 2",seconds:focusSec,step:"step2"},
+    {type:"break2",label:"Break",seconds:breakSec,step:"break2",next:"Focus Round 3"},
+    {type:"focus3",label:"Focus Round 3",seconds:focusSec,step:"step3"}
+  ];
+  app.flowIndex=-1;
+  app.waitingNext=false;
+  app.nextPhaseIndex=null;
+  resetStepUI();
+  setPlanningControlsLocked(true);
+  if(includePreparation) startPhase("prepare","Prepare",300,"You have 5 minutes to get ready. Open what you need. No pressure — just prepare.");
+  else startFocusRound(0);
+}
+
+function startPreparation(){createFlow(true);}
+function skipPreparation(){createFlow(false);}
+
+function startFocusRound(flowIndex){
+  app.flowIndex=flowIndex;
+  const p=app.flow[flowIndex];
+  startPhase("focus",p.label,p.seconds,p.label + " is starting.");
+  sendAlert(p.label + " started", "Your focus round has started.");
+}
+
+function startBreak(flowIndex){
+  app.flowIndex=flowIndex;
+  const p=app.flow[flowIndex];
+  startPhase("break","Break",p.seconds,"Your break has started.");
+  sendAlert("Break started", "Rest now. " + p.next + " will be ready after this break.");
+}
+
+function startPhase(phase,label,seconds,msg){
+  clearInterval(ticker);
+  app.phase=phase;
+  app.phaseEndTime=Date.now()+seconds*1000;
+  app.pausedRemaining=null;
+  app.waitingNext=false;
+  saveState();
+  phaseLabel.textContent=label;
+  messageEl.textContent=msg;
+  mainBtn.disabled=false;
+  mainBtn.textContent="Pause";
+  skipBtn.textContent="Skip Break";
+  skipBtn.disabled=!(phase==="break" || phase==="taskBreak");
+  setActiveStep();
+  tick();
+  ticker=setInterval(tick,1000);
+}
+
+function tick(){
+  if(!app.phaseEndTime) return;
+  const remaining=Math.max(0,Math.ceil((app.phaseEndTime-Date.now())/1000));
+  updateTimerText(remaining);
+  if(remaining<=0){
+    clearInterval(ticker);
+    completeCurrentPhase();
+  }
+}
+
+function updateTimerText(sec){
+  const m=Math.floor(sec/60);
+  const s=sec%60;
+  timerEl.textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+
+function completeCurrentPhase(){
+  if(app.phase==="prepare"){
+    sendAlert("Preparation finished","Focus Round 1 is starting.");
+    startFocusRound(0);
+    return;
+  }
+  if(app.phase==="focus"){
+    const p=app.flow[app.flowIndex];
+    markStepDone(p.step);
+    if(p.type==="focus1"){
+      sendAlert("Focus Round 1 complete","Your break has started.");
+      startBreak(1);
+    }else if(p.type==="focus2"){
+      sendAlert("Focus Round 2 complete","Your break has started.");
+      startBreak(3);
+    }else if(p.type==="focus3"){
+      sendAlert("Focus Round 3 complete","This task is complete.");
+      finishTask();
+    }
+    return;
+  }
+  if(app.phase==="break"){
+    const p=app.flow[app.flowIndex];
+    markStepDone(p.step);
+    app.phase="readyNext";
+    app.nextPhaseIndex = p.type==="break1" ? 2 : 4;
+    app.phaseEndTime=null;
+    app.waitingNext=true;
+    timerEl.textContent="READY";
+    phaseLabel.textContent=p.next + " Ready";
+    messageEl.textContent="Break finished.\n\n" + p.next + " is ready.\n\nTap Begin Next Round when you’re ready.";
+    mainBtn.disabled=true;
+    skipBtn.disabled=false;
+    skipBtn.textContent="Begin Next Round";
+    saveState();
+    sendAlert("Break finished", p.next + " is ready to begin.");
+    return;
+  }
+  if(app.phase==="taskBreak"){
+    app.phase="readyTask";
+    app.phaseEndTime=null;
+    timerEl.textContent="READY";
+    phaseLabel.textContent="Next Task Ready";
+    mainBtn.disabled=true;
+    skipBtn.disabled=true;
+    skipBtn.textContent="Skip Break";
+    setPlanningControlsLocked(false);
+    const name=taskSelect.options[taskSelect.selectedIndex]?.textContent.replace("✓ ","") || "next task";
+    messageEl.textContent="Your break is finished.\n\nI’m here. Ready for the " + name + "?\n\nIf you’re ready, tap Start 5-Minute Preparation.";
+    saveState();
+    sendAlert("Task break finished", name + " is ready to begin.");
+  }
+}
+
+function skipOrBegin(){
+  if(skipBtn.disabled) return;
+  if(app.phase==="readyNext" && app.nextPhaseIndex!==null){
+    const idx=app.nextPhaseIndex;
+    app.waitingNext=false;
+    app.nextPhaseIndex=null;
+    startFocusRound(idx);
+    return;
+  }
+  if(app.phase==="break"){
+    clearInterval(ticker);
+    completeCurrentPhase();
+    return;
+  }
+  if(app.phase==="taskBreak"){
+    clearInterval(ticker);
+    completeCurrentPhase();
+  }
+}
+
+function finishTask(){
+  clearInterval(ticker);
+  const idx=app.selectedTaskIndex;
+  if(idx!==null && idx>=0){
+    app.completed[idx]=true;
+  }
+  renderTasks();
+  markStepDone("step3");
+  const nextInfo=getNextTaskInfo();
+  if(nextInfo){
+    taskSelect.value=String(nextInfo.index);
+    saveState();
+    const mins=Number(taskBreakSelect.value);
+    app.phase="taskBreak";
+    app.phaseEndTime=Date.now()+mins*60*1000;
+    phaseLabel.textContent="Task Break";
+    messageEl.textContent="1 task done.\n\nThat’s how progress happens.\n\nTake a " + mins + "-minute break. I’ll be waiting for you in " + mins + " minutes.\n\nNext task: " + nextInfo.name + ".";
+    mainBtn.disabled=false;
+    mainBtn.textContent="Pause";
+    skipBtn.disabled=false;
+    skipBtn.textContent="Skip Break";
+    setPlanningControlsLocked(true);
+    saveState();
+    sendAlert("Task complete","Take a break. Next task: " + nextInfo.name + ".");
+    tick();
+    ticker=setInterval(tick,1000);
+  }else{
+    app.phase="completed";
+    app.allDoneLocked=true;
+    app.phaseEndTime=null;
+    timerEl.textContent="DONE";
+    phaseLabel.textContent="Completed";
+    mainBtn.disabled=true;
+    skipBtn.disabled=true;
+    setPlanningControlsLocked(false);
+    messageEl.textContent="All tasks done.\n\nYou showed up, you stayed, and you finished.\n\nThat’s real progress. Be proud of yourself.\n\nTo repeat your tasks, tap Reset Completed Tasks.";
+    saveState();
+    sendAlert("All tasks complete","You finished today’s focus flow.");
+  }
+}
+
+function getNextTaskInfo(){
+  for(let i=0;i<app.tasks.length;i++){
+    if(i!==app.selectedTaskIndex && app.tasks[i].trim() && !app.completed[i]){
+      return {index:i,name:app.tasks[i].trim()};
+    }
+  }
+  return null;
+}
+
+function toggleTimer(){
+  if(!isActive()) return;
+  if(app.phaseEndTime){
+    app.pausedRemaining=Math.max(1,Math.ceil((app.phaseEndTime-Date.now())/1000));
+    app.phaseEndTime=null;
+    clearInterval(ticker);
+    mainBtn.textContent="Resume";
+    messageEl.textContent="Paused. Restart gently when you’re ready.";
+  }else if(app.pausedRemaining){
+    app.phaseEndTime=Date.now()+app.pausedRemaining*1000;
+    app.pausedRemaining=null;
+    mainBtn.textContent="Pause";
+    saveState();
+    tick();
+    ticker=setInterval(tick,1000);
+  }
+  saveState();
+}
+
+function restartSession(showMsg=true){
+  clearInterval(ticker);
+  app.phase="idle";
+  app.phaseEndTime=null;
+  app.pausedRemaining=null;
+  app.waitingNext=false;
+  app.nextPhaseIndex=null;
+  app.flowIndex=-1;
+  saveState();
+  resetStepUI();
+  renderIdle(showMsg ? "Start again. No pressure." : "Choose a task and start when you’re ready.");
+}
+
+function renderIdle(msg){
+  phaseLabel.textContent="Not started";
+  timerEl.textContent="00:00";
+  messageEl.textContent=msg;
+  mainBtn.disabled=true;
+  mainBtn.textContent="Pause";
+  skipBtn.disabled=true;
+  skipBtn.textContent="Skip Break";
+  setPlanningControlsLocked(false);
+}
+
+function setActiveStep(){
+  document.querySelectorAll(".step").forEach(s=>s.classList.remove("active"));
+  if(app.phase==="focus" || app.phase==="break"){
+    const p=app.flow[app.flowIndex];
+    if(p && p.step) document.getElementById(p.step)?.classList.add("active");
+  }
+}
+
+function markStepDone(id){
+  const el=document.getElementById(id);
+  if(el){
+    el.classList.add("done");
+    el.querySelector(".dot").textContent="✓";
+  }
+}
+
+function resetStepUI(){
+  document.querySelectorAll(".step").forEach(s=>s.classList.remove("active","done"));
+  document.querySelector("#step1 .dot").textContent="1";
+  document.querySelector("#step2 .dot").textContent="2";
+  document.querySelector("#step3 .dot").textContent="3";
+  document.querySelector("#break1 .dot").textContent="☕";
+  document.querySelector("#break2 .dot").textContent="☕";
+}
+
+function enableNotifications(){
+  const status=document.getElementById("notificationStatus");
+  unlockAudio();
+  if(!("Notification" in window)){
+    status.textContent="Notifications are not supported in this browser.";
+    return;
+  }
+  Notification.requestPermission().then(permission=>{
+    if(permission==="granted"){
+      status.textContent="Notifications enabled. I’ll alert you when each section finishes.";
+      sendAlert("Notifications enabled","Focus Planner will alert you when a section finishes.");
+    }else if(permission==="denied"){
+      status.textContent="Notifications are blocked. Enable them in Chrome or phone settings.";
+    }else{
+      status.textContent="Notifications were not enabled yet.";
+    }
+  });
+}
+
+function unlockAudio(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state==="suspended") audioCtx.resume();
+  }catch(e){}
+}
+
+function playBeep(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.value=880;
+    gain.gain.setValueAtTime(0.0001,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.25,audioCtx.currentTime+0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.45);
+    osc.start();
+    osc.stop(audioCtx.currentTime+0.5);
+  }catch(e){}
+}
+
+function vibrate(){
+  try{ if(navigator.vibrate) navigator.vibrate([250,120,250]); }catch(e){}
+}
+
+function notify(title,body){
+  if(!("Notification" in window)) return;
+  if(Notification.permission!=="granted") return;
+  try{ new Notification(title,{body,icon:"icon-192.png",badge:"icon-192.png"}); }catch(e){}
+}
+
+function sendAlert(title,body){
+  playBeep();
+  vibrate();
+  notify(title,body);
+}
+
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden && app.phaseEndTime){
+    tick();
+  }
+});
+
+function resumeExisting(){
+  renderTasks();
+  buildSelects();
+  resetStepUI();
+  if(app.phase==="idle" || app.phase==="completed"){
+    if(app.phase==="completed") showAllDoneError();
+    else renderIdle("Choose a task and start when you’re ready.");
+    return;
+  }
+  if(app.phase==="readyNext"){
+    timerEl.textContent="READY";
+    phaseLabel.textContent=(app.flow[app.nextPhaseIndex]?.label || "Next Round")+" Ready";
+    skipBtn.disabled=false;
+    skipBtn.textContent="Begin Next Round";
+    mainBtn.disabled=true;
+    setPlanningControlsLocked(true);
+    return;
+  }
+  if(app.phase==="readyTask"){
+    timerEl.textContent="READY";
+    phaseLabel.textContent="Next Task Ready";
+    mainBtn.disabled=true;
+    skipBtn.disabled=true;
+    setPlanningControlsLocked(false);
+    return;
+  }
+  setPlanningControlsLocked(true);
+  setActiveStep();
+  tick();
+  ticker=setInterval(tick,1000);
+}
+
+resumeExisting();
+</script>
+</body>
+</html>
