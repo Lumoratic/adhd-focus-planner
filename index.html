@@ -3369,9 +3369,11 @@ input, select, button { font-size: 13.5px !important; }
       const selectedMinutes = Number(durationSelect.value || 0);
       const roundMinutes = Math.max(1, Math.round(selectedMinutes / 3));
 
-      // Save every completed focus round immediately.
-      // This way Progress updates even if the user stops after round 1 or 2.
-      saveFocusSessionLocally(title, roundMinutes, 1);
+      // Guest mode saves locally. Signed-in mode saves only to cloud,
+      // so all devices show the same Progress.
+      if (!currentUser) {
+        saveFocusSessionLocally(title, roundMinutes, 1);
+      }
 
       try {
         if (currentUser) {
@@ -4662,7 +4664,7 @@ input, select, button { font-size: 13.5px !important; }
         const user = getCurrentUserSafe();
 
         try {
-          let allSessions = getLocalFocusSessions();
+          let allSessions = [];
 
           if (user) {
             const all = await supabaseClient
@@ -4674,16 +4676,12 @@ input, select, button { font-size: 13.5px !important; }
 
             if (all.error) throw all.error;
 
-            const cloudSessions = all.data || [];
-            const seen = new Set();
-            allSessions = cloudSessions.concat(allSessions).filter(function(item) {
-              const key = [item.task_title, item.duration_minutes, item.completed_at].join("|");
-              if (seen.has(key)) return false;
-              seen.add(key);
-              return true;
-            }).sort(function(a, b) {
-              return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
-            });
+            // Signed-in progress must be identical on every device.
+            // So use cloud data only; do not mix in this phone's localStorage.
+            allSessions = all.data || [];
+          } else {
+            // Guest mode has no cloud sync, so local progress is okay here.
+            allSessions = getLocalFocusSessions();
           }
 
           allSessions = filterSessionsAfterReset(allSessions);
